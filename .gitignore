@@ -1,0 +1,30 @@
+# Общие файлы Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+*.env
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Лог-файлы и временные файлы
+logs/
+*.log
+*.sqlite3
+
+# Docker (если используете)
+docker-compose.override.yml
+
+# Alembic (если используете миграции)
+alembic/versions/
+
+# FastAPI static/media (если загружаете файлы)
+static/
+media/
+uploads/
