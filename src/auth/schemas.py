@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -9,6 +10,8 @@ class Token(BaseModel):
 class User(BaseModel):
     username: str
     password: str
+    role: Optional[str] = None
 
-USER_DATA=[User(**{"username": "John", "password": "pass1"}),
-           User(**{"username": "Katy", "password": "pass2"})]
+
+USER_DATA=[User(**{"username": "admin", "password": "pass1", "role": "admin"}),
+           User(**{"username": "user", "password": "pass2", "role": "user"})]

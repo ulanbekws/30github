@@ -1,11 +1,12 @@
-from datetime import datetime, timedelta, timezone
-from typing import Annotated
-
-from fastapi import APIRouter, Request, HTTPException, Form, status, Depends
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi import FastAPI, HTTPException, Depends, status, APIRouter
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel
 import jwt
+from typing import Optional, Annotated
 
-from src.auth.schemas import USER_DATA, User, Token
+from sqlalchemy.sql.operators import all_op
+
+from src.auth.schemas import User, USER_DATA
 
 router = APIRouter()
 
@@ -13,42 +14,61 @@ SECRET_KEY = "dba749b064fa8502475b7bd8b31b81d2cb20a34fbfee762ba4ba9c09093c799a"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 
-async def authenticate_user(username: str = Form(), password: str = Form()) -> User:
-    for user in USER_DATA:
-        if user.username == username and user.password == password:
-            return user
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,)
+def create_jwt_token(data: dict) -> str:
+    return jwt.encode(payload=data, key=SECRET_KEY, algorithm=ALGORITHM)
 
 
-async def create_jwt_token(username: str) -> str:
-    payload = {
-        "sub": username,
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=1)
-    }
-    return jwt.encode(payload=payload, key=SECRET_KEY, algorithm=ALGORITHM)
-
-
-async def get_username_from_token(token: str = Depends(oauth2_scheme)) -> str:
+def get_user_from_token(token: str = Depends(oauth2_scheme)) -> str:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("sub")
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Expired signature')
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid token')
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
-@router.post("/login")
-async def login(user: Annotated[User | None, Depends(authenticate_user)]) -> Token:
-    return Token(token=await create_jwt_token(user.username), type="bearer")
+def get_user(username: str) -> Optional[User]:
+    if username in USER_DATA:
+        user_data = USER_DATA[username]
+        return User(**user_data)
+    return None
 
 
-@router.get("/protected_resource")
-async def protected_resource(username: User = Depends(get_username_from_token)):
-    for user in USER_DATA:
-        if username == user.username:
-            return {"message": "Access granted"}
+@router.post("/token/")  # Login
+def login(user_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    user_data_from_db = get_user(username=user_data.username)
+    if user_data_from_db is None or user_data.password != user_data_from_db.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return {"access_token": create_jwt_token({"sub": user_data_from_db.username})}
+
+
+@router.get("/admin/")
+def get_admin_info(current_user: str = Depends(get_user_from_token)):
+    user_data = get_user(username=current_user)
+    if user_data.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    return {"message": "Welcome Admin!"}
+
+
+@router.get("/user/")
+def get_user_info(current_user: str = Depends(get_user_from_token)):
+    user_data = get_user(username=current_user)
+    if user_data.role != "user":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    return {"message": "Welcome User!"}
