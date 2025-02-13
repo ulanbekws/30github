@@ -17,5 +17,12 @@ class ProductResponse(ProductCreate):
         from_attributes = True
 
 
+class ToDoSchema(BaseModel):
+    id: int | None
+    title: str
+    description: str | None = None
+    completed: bool = False
+
+
 
 

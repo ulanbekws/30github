@@ -1,16 +1,25 @@
 from typing import Optional
 from pydantic import BaseModel
+from enum import Enum
 
 
-class Token(BaseModel):
-    token: str
-    type: str
+class Role(Enum):
+    ADMIN = "admin"
+    USER = "user"
+    GUEST = "guest"
 
 
-class User(BaseModel):
+class Permission(Enum):
+    ADMIN = "create, read, update, delete"
+    USER = "read, update"
+    GUEST = "read"
+
+
+class UserSchema(BaseModel):
     username: str
     password: str
-    role: Optional[str] = None
+    role: Role | None = None
+    permission: Permission | None = None
 
 
 USER_DATA=[User(**{"username": "admin", "password": "pass1", "role": "admin"}),
