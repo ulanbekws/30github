@@ -3,6 +3,12 @@ from pydantic import BaseModel
 from enum import Enum
 
 
+class User(BaseModel):
+    username: str
+    password: str
+    role: str
+
+
 class Role(Enum):
     ADMIN = "admin"
     USER = "user"
@@ -20,6 +26,17 @@ class UserSchema(BaseModel):
     password: str
     role: Role | None = None
     permission: Permission | None = None
+
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+
+
+class UserReturn(BaseModel):
+    username: str
+    email: str
+    id: Optional[int] = None
 
 
 USER_DATA=[User(**{"username": "admin", "password": "pass1", "role": "admin"}),

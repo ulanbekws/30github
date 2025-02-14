@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, UUID4
 
 from src.products.models import Product
 
@@ -18,10 +19,10 @@ class ProductResponse(ProductCreate):
 
 
 class ToDoSchema(BaseModel):
-    id: int | None
+    id: Optional[UUID4] = None
     title: str
-    description: str | None = None
-    completed: bool = False
+    description: str
+    completed: Optional[bool] = False
 
 
 

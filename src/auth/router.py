@@ -7,10 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from secrets import token_urlsafe
 from passlib.context import CryptContext
+from databases import Database
 
-from src.auth.schemas import Role, UserSchema, Permission
+from src.auth.schemas import Role, UserSchema, Permission, UserReturn, UserCreate
 
 router = APIRouter()
+
+DATABASE_URL = "postgresql://user:password@localhost/dbname"
+database = Database(DATABASE_URL)
 
 SECRET_KEY = token_urlsafe(16)
 ALGORITHM = 'HS256'
@@ -123,91 +127,36 @@ def get_guest_info(current_user: str = Depends(get_user_from_token)):
     return {'message': 'Nice to meet you Guest!'}
 
 
-
-# from fastapi import FastAPI, HTTPException, Depends, status, APIRouter
-# from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-# from pydantic import BaseModel
-# import jwt
-# from typing import Optional, Annotated
-#
-# from sqlalchemy.sql.operators import all_op
-#
-# from src.auth.schemas import User, USER_DATA
-#
-# router = APIRouter()
-#
-# SECRET_KEY = "dba749b064fa8502475b7bd8b31b81d2cb20a34fbfee762ba4ba9c09093c799a"
-# ALGORITHM = "HS256"
-# ACCESS_TOKEN_EXPIRE_MINUTES = 1
-#
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
-#
-#
-# def create_jwt_token(data: dict) -> str:
-#     return jwt.encode(payload=data, key=SECRET_KEY, algorithm=ALGORITHM)
-#
-#
-# def get_user_from_token(token: str = Depends(oauth2_scheme)) -> str:
-#     try:
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-#         return payload.get("sub")
-#     except jwt.ExpiredSignatureError:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="Token has expired",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-#     except jwt.InvalidTokenError:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="Invalid token",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-#
-#
-# def get_user(username: str) -> Optional[User]:
-#     if username in USER_DATA:
-#         user_data = USER_DATA[username]
-#         return User(**user_data)
-#     return None
-#
-#
-# @router.post("/token/")  # Login
-# def login(user_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-#     user_data_from_db = get_user(username=user_data.username)
-#     if user_data_from_db is None or user_data.password != user_data_from_db.password:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="Invalid credentials",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-#     return {"access_token": create_jwt_token({"sub": user_data_from_db.username})}
-#
-#
-# @router.get("/admin/")
-# def get_admin_info(current_user: str = Depends(get_user_from_token)):
-#     user_data = get_user(username=current_user)
-#     if user_data.role != "admin":
-#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-#     return {"message": "Welcome Admin!"}
-#
-#
-# @router.get("/user/")
-# def get_user_info(current_user: str = Depends(get_user_from_token)):
-#     user_data = get_user(username=current_user)
-#     if user_data.role != "user":
-#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-#     return {"message": "Welcome User!"}
-#
-# """-------------------------"""
-# from datetime import datetime, timedelta, timezone
-# from fastapi import FastAPI, HTTPException, Depends, status
-# from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-# from models.models import UserSchema, Role, Permission
-# from secrets import token_urlsafe
-# from passlib.context import CryptContext
-# import jwt
-# from typing import Annotated, Callable
-# from functools import wraps
+@router.on_event("startup")
+async def startup_database():
+    await database.connect()
 
 
+@router.on_event("shutdown")
+async def shutdown_database():
+    await database.disconnect()
+
+
+@router.post("/users/", response_model=UserReturn)
+async def create_user(user: UserCreate):
+    query = "INSERT INTO users (username, email) VALUES (:username, :email) RETURNING id"
+    values = {"username": user.username, "email": user.email}
+    try:
+        user_id = await database.execute(query=query, values=values)
+        return {**user.dict(), "id": user_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create user")
+
+
+@router.get("/user/{user_id}/", response_model=UserReturn)
+async def get_user(user_id: int):
+    query = "SELECT * FROM users WHERE id = :user_id"
+    values = {"user_id": user_id}
+    try:
+        result = await database.fetch_one(query=query, values=values)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get user")
+    if result:
+        return UserReturn(username=result["username"], email=result["email"])
+    else:
+        raise HTTPException(status_code=404, detail="User not found")

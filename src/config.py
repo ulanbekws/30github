@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-
+import asyncpg
 
 class Settings(BaseSettings):
     DB_HOST: str
@@ -16,3 +16,10 @@ class Settings(BaseSettings):
         env_file = ".evn"
 
 settings = Settings()
+
+async def connect_db():
+    return await asyncpg.connect(host="localhost",
+                                 port=5432,
+                                 user="postgres",
+                                 password="123",
+                                 database="postgres")
