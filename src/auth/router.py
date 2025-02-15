@@ -160,3 +160,28 @@ async def get_user(user_id: int):
         return UserReturn(username=result["username"], email=result["email"])
     else:
         raise HTTPException(status_code=404, detail="User not found")
+
+
+@router.put("/user/{user_id}/", response_model=UserReturn)
+async def update_user(user_id: int, user: UserCreate):
+    query = "UPDATE users SET username = :username, email = :email WHERE id = :user_id"
+    values = {"username": user.username, "email": user.email}
+    try:
+        await database.execute(query=query, values=values)
+        return {**user.dict(), "id": user_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to update user")
+
+
+@router.delete("/user/{user_id}/", response_model=dict)
+async def delete_user(user_id: int):
+    query = "DELETE FROM users WHERE id = :user_id RETURNING id"
+    values = {"user_id": user_id}
+    try:
+        delete_rows = await database.execute(query=query, values=values)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to delete user")
+    if delete_rows:
+        return {"message": "User deleted successfully"}
+    else:
+        raise HTTPException(status_code=404, detail="User not found")
