@@ -80,6 +80,33 @@ async def get_users_with_posts(
             print("-", post)
 
 
+async def get_users_with_posts_and_profiles(
+        session: AsyncSession,
+):
+    # stmt = select(User).options(joinedload(User.posts)).order_by(User.id)
+    stmt = select(User).options(
+        joinedload(User.profile),
+        selectinload(User.posts),
+    ).order_by(User.id)
+    users = await session.scalars(stmt)
+
+    for user in users:  # type: User
+        print("**" * 10)
+        print(user, user.profile and user.profile.first_name)
+        print(user)
+        for post in user.posts:
+            print("-", post)
+
+
+async def get_posts_with_authors(session: AsyncSession):
+    stmt = select(Post).options(joinedload(Post.user)).order_by(Post.id)
+    posts = await session.scalars(stmt)
+
+    for post in posts:  # type: Post
+        print("post", post)
+        print("authore", post.user)
+
+
 async def main():
     async with db_helper.session_factory() as session:
         # await create_user(session=session, username="john")
@@ -104,7 +131,9 @@ async def main():
         #     "SQLA 2.0",
         #     "SQLA Joins",
         # )
-        await get_users_with_posts(session=session)
+        # await get_users_with_posts(session=session)
+        # await get_posts_with_authors(session=session)
+        await get_users_with_posts_and_profiles(session=session)
 
 
 if __name__ == "__main__":
