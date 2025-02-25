@@ -1,7 +1,7 @@
 import asyncio
 
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,15 +53,39 @@ async def show_users_with_profiles(session: AsyncSession):
 
 
 async def create_posts(session: AsyncSession, user_id: int, *posts_titles: str) -> list[Post]:
-    pass
+    posts = [Post(title=title, user_id=user_id) for title in posts_titles]
+    session.add_all(posts)
+    await session.commit()
+    print(posts)
+    return posts
+
+
+async def get_users_with_posts(
+        session: AsyncSession,
+):
+    # stmt = select(User).options(joinedload(User.posts)).order_by(User.id)
+    stmt = select(User).options(
+        #joinedload(User.posts),
+        selectinload(User.posts),
+    ).order_by(User.id)
+    # users = await session.scalars(stmt)
+    result: Result = await session.execute(stmt)
+    # users = result.unique().scalars()
+    users = result.scalars()
+
+    for user in users:  # type: User
+        print("**" * 10)
+        print(user)
+        for post in user.posts:
+            print("-", post)
 
 
 async def main():
     async with db_helper.session_factory() as session:
         # await create_user(session=session, username="john")
         # await create_user(session=session, username="sam")
-        #user_sam = await get_user_by_username(session=session, username="sam")
-        #user_bob = await get_user_by_username(session=session, username="bob")
+        user_sam = await get_user_by_username(session=session, username="sam")
+        # user_bob = await get_user_by_username(session=session, username="bob")
         # await create_user_profile(
         #     session=session,
         #     user_id=user_john.id,
@@ -73,8 +97,15 @@ async def main():
         #     first_name="Bob",
         #     last_name="White",
         # )
-        await show_users_with_profiles(session=session)
+        # await show_users_with_profiles(session=session)
+        # await create_posts(
+        #     session,
+        #     user_sam.id,
+        #     "SQLA 2.0",
+        #     "SQLA Joins",
+        # )
+        await get_users_with_posts(session=session)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     asyncio.run(main())
