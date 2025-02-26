@@ -104,7 +104,24 @@ async def get_posts_with_authors(session: AsyncSession):
 
     for post in posts:  # type: Post
         print("post", post)
-        print("authore", post.user)
+        print("author", post.user)
+
+
+async def get_profiles_with_users_with_posts(session: AsyncSession):
+    stmt = (
+        select(Profile)
+        .join(Profile.user)
+        .options(
+            joinedload(Profile.user).selectinload(User.posts),
+        )
+        .where(User.username == "john")
+        .order_by(Profile.id)
+    )
+    profiles = await session.scalars(stmt)
+
+    for profile in profiles:
+        print(profile.first_name, profile.user)
+        print(profile.user.posts)
 
 
 async def main():
