@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.models import db_helper, User, Profile, Post
+from core.models import db_helper, User, Profile, Post, Order, Product
 
 
 async def create_user(session: AsyncSession, username: str) -> User:
@@ -124,6 +124,29 @@ async def get_profiles_with_users_with_posts(session: AsyncSession):
         print(profile.user.posts)
 
 
+async def create_order(session: AsyncSession, promocode: str | None = None) -> Order:
+    order = Order(promocode=promocode)
+
+    session.add(order)
+    await session.commit()
+
+    return order
+
+
+async def create_product(
+        session: AsyncSession,
+        name: str,
+        description: str,
+        price: int,
+) -> Product:
+    product = Product(name=name, description=description, price=price)
+
+    session.add(product)
+    await session.commit()
+
+    return product
+
+
 async def main_relations(session: AsyncSession):
     # await create_user(session=session, username="john")
     # await create_user(session=session, username="sam")
@@ -153,8 +176,27 @@ async def main_relations(session: AsyncSession):
 
 
 async def demo_m2m(session: AsyncSession):
-    pass
+    order_one = await create_order(session=session)
+    order_promo = await create_order(session=session, promocode="promo")
 
+    mouse = await create_product(
+        session=session,
+        name="mouse",
+        description="Greate gaming mouse",
+        price=123,
+    )
+    keyboard = await create_product(
+        session=session,
+        name="Keyboard",
+        description="Greate gaming keyboard",
+        price=149,
+    )
+    display = await create_product(
+       session=session,
+       name="Display",
+       description="Office display",
+       price=299,
+    )
 
 async def main():
     async with db_helper.session_factory() as session:
