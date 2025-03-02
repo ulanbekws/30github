@@ -198,6 +198,22 @@ async def demo_m2m(session: AsyncSession):
        price=299,
     )
 
+    order_one = await session.get(
+        Order,
+        order_one.id,
+        options=(selectinload(Order.products),),
+    )
+    order_promo = await session.get(
+        Order,
+        order_one.id,
+        options=(selectinload(Order.products),),
+    )
+    order_one.products.append(mouse)
+    order_one.products.append(keyboard)
+    order_promo.products.append(keyboard)
+    order_promo.products.append(display)
+
+
 async def main():
     async with db_helper.session_factory() as session:
         #await main_relations(session)
