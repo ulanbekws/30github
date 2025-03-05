@@ -8,6 +8,7 @@ from .base import Base
 
 if TYPE_CHECKING:
     from .product import Product
+    from .order_product_association import OrderProductAssociation
 
 
 class Order(Base):
@@ -19,4 +20,8 @@ class Order(Base):
     products: Mapped[list["Product"]] = relationship(
         secondary="order_product_association_table",
         back_populates="orders",
+    )
+
+    products_details: Mapped[list["OrderProductAssociation"]] = relationship(
+        back_populates="order"
     )
