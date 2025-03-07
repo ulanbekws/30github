@@ -256,7 +256,17 @@ async def main_relations(session: AsyncSession):
 async def demo_m2m(session: AsyncSession):
     # await create_orders_and_products(session=session)
     # await demo_get_orders_with_products_through_secondary(session)
-    await demo_get_orders_with_products_with_assoc(session)
+    # await demo_get_orders_with_products_with_assoc(session)
+    orders = await get_orders_with_products_assoc(session)
+    gift_product = await create_product(
+        session,
+        name="Gift",
+        description="Gift for you",
+        price=0,
+    )
+    for order in orders:
+        order.products_details.append(gift_product)
+    await session.commit()
 
 
 async def main():
